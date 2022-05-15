@@ -3,7 +3,7 @@ use clap::{Arg, Command};
 fn main() {
     let matches = Command::new("echor")
         .version("0.1.0")
-        .author("Benii")
+        .author("BeniiAlCo")
         .about("A Rust port of the command line tool 'echo'.")
         .arg(
             Arg::new("no_newline")
@@ -62,6 +62,7 @@ impl Opt {
     }
 
     fn print_string(&self, output: Vec<&str>) {
+        // TODO: Implement backsash escape functionality, as per the behavior of echo in fish.
         let line_end = if self.newline { "\n" } else { "" };
 
         if self.space_seperated_arguments {
