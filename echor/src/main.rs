@@ -57,19 +57,17 @@ impl Opt {
                 space_seperated_arguments: !args.is_present("no_space_seperated_arguments"),
                 _backslash_escapes: false,
             },
-            args.values_of("string").unwrap().collect(),
+            args.values_of("string").unwrap_or_default().collect(),
         )
     }
 
-    fn print_string(&self, mut output: Vec<&str>) {
-        if self.newline {
-            output.push("\n")
-        };
+    fn print_string(&self, output: Vec<&str>) {
+        let line_end = if self.newline { "\n" } else { "" };
 
         if self.space_seperated_arguments {
-            print!("{}", &output.join(" "));
+            print!("{}{}", &output.join(" "), line_end);
         } else {
-            print!("{}", &output.concat());
+            print!("{}{}", &output.concat(), line_end);
         };
     }
 }
