@@ -1,7 +1,7 @@
 use clap::{Arg, Command};
 
 fn main() {
-    let _matches = Command::new("echor")
+    let matches = Command::new("echor")
         .version("0.1.0")
         .author("Benii")
         .about("A Rust port of the command line tool 'echo'.")
@@ -31,6 +31,45 @@ fn main() {
                 .conflicts_with("enable_backslash_escapes")
                 .display_order(2),
         )
-        .arg(Arg::new("string").takes_value(true).value_name("STRING"))
+        .arg(
+            Arg::new("string")
+                .takes_value(true)
+                .value_name("STRING")
+                .multiple_values(true),
+        )
         .get_matches();
+
+    let (opt, output) = Opt::parse_arguments(&matches);
+    opt.print_string(output);
+}
+
+struct Opt {
+    newline: bool,
+    space_seperated_arguments: bool,
+    _backslash_escapes: bool,
+}
+
+impl Opt {
+    fn parse_arguments(args: &clap::ArgMatches) -> (Self, Vec<&str>) {
+        (
+            Opt {
+                newline: !args.is_present("no_newline"),
+                space_seperated_arguments: !args.is_present("no_space_seperated_arguments"),
+                _backslash_escapes: false,
+            },
+            args.values_of("string").unwrap().collect(),
+        )
+    }
+
+    fn print_string(&self, mut output: Vec<&str>) {
+        if self.newline {
+            output.push("\n")
+        };
+
+        if self.space_seperated_arguments {
+            print!("{}", &output.join(" "));
+        } else {
+            print!("{}", &output.concat());
+        };
+    }
 }
