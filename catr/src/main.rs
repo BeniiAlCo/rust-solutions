@@ -5,7 +5,7 @@ fn main() {
         .version("0.1.0")
         .author("BeniiAlCo")
         .about("rust port of (a subset of) cat")
-        //bEns TODO: implement -A, -e, -t, -T, -u, -v
+        //-bEns TODO: implement -A, -e, -t, -T, -u, -v
         .arg(
             Arg::new("number_nonblank")
                 .short('b')
@@ -48,8 +48,8 @@ fn main() {
 }
 
 enum LineNumbers {
-    None,
-    All,
+    Omit,
+    Include,
     OnlyNonEmpty,
 }
 
@@ -66,9 +66,8 @@ impl<'a> Config<'a> {
             show_ends: args.is_present("show_ends"),
             line_numbers: {
                 match args.is_present("number_nonblank") {
-                    true => LineNumbers::OnlyNonEmpty,
-                    false if args.is_present("number") => LineNumbers::All,
-                    _ => LineNumbers::None,
+                    false if args.is_present("number") => LineNumbers::Include,
+                    _ => LineNumbers::Omit,
                 }
             },
             squeeze_blank: args.is_present("squeeze_blank"),
