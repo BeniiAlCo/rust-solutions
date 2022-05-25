@@ -91,25 +91,39 @@ impl Config {
             _ => {}
         }
 
+        for l in "o\nb\no\n".lines() {
+            println!("{l}");
+        }
+
+        for l in self
+            .input
+            .iter()
+            .flat_map(|x| Config::open(&x).unwrap().lines())
+        {
+            if let Ok(line) = l {
+                println!("{line}");
+            }
+        }
+
         for filename in self.input {
             match Config::open(&filename) {
                 Err(err) => eprintln!("Failed to open {filename}: {err}"),
                 Ok(output) => {
                     for line in output.lines().enumerate() {
                         if let (i, Ok(line)) = line {
-                            match self.line_numbers {
-                                LineNumbers::Include => {
-                                    print!("{i\t}");
-                                }
+                            let line_number = match self.line_numbers {
+                                LineNumbers::Include => format!("     {i}  "),
                                 LineNumbers::OnlyNonEmpty => {
                                     if !line.is_empty() {
-                                        print!("{i\t}");
+                                        format!("     {i}  ")
+                                    } else {
+                                        "".to_string()
                                     }
                                 }
-                                _ => {}
-                            }
+                                _ => "".to_string(),
+                            };
 
-                            print!("{line}");
+                            print!("{line_number}{line}");
 
                             if self.show_ends {
                                 print!("$");
