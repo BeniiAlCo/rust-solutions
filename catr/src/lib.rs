@@ -1,5 +1,7 @@
 use clap::{Arg, Command};
 use std::error::Error;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 
 #[derive(Debug)]
 enum LineNumbers {
@@ -84,7 +86,50 @@ impl Config {
     }
 
     pub fn run(self) -> Result<(), Box<dyn Error>> {
-        dbg!(self);
+        if self.squeeze_blank {}
+        match self.line_numbers {
+            _ => {}
+        }
+
+        for filename in self.input {
+            match Config::open(&filename) {
+                Err(err) => eprintln!("Failed to open {filename}: {err}"),
+                Ok(output) => {
+                    for line in output.lines().enumerate() {
+                        if let (i, Ok(line)) = line {
+                            match self.line_numbers {
+                                LineNumbers::Include => {
+                                    print!("{i\t}");
+                                }
+                                LineNumbers::OnlyNonEmpty => {
+                                    if !line.is_empty() {
+                                        print!("{i\t}");
+                                    }
+                                }
+                                _ => {}
+                            }
+
+                            print!("{line}");
+
+                            if self.show_ends {
+                                print!("$");
+                            }
+                            print!("\n");
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
+    }
+
+    fn open(filename: &str) -> Result<Box<dyn BufRead>, Box<dyn Error>> {
+        // TODO: other implementations of stdin that I have seen use stdin.lock() -- why is this? (I
+        // assume that it has to do with adding in multithreading support later on, which this book
+        // just isn't going to cover right now?)
+        match filename {
+            "-" => Ok(Box::new(BufReader::new(io::stdin()))),
+            _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+        }
     }
 }
