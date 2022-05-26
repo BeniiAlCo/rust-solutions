@@ -77,6 +77,14 @@ impl Config {
                 }
             },
             squeeze_blank: matches.is_present("squeeze_blank"),
+
+            // TODO: does matches have to be a String? Surely I can leave it as an &str somehow?
+            // Would this mean foregoing the Vec here and accessing the input files some other way
+            // at a later point? I should check how other implementations do this, because my
+            // initial ideas seem to complicate the process somewhat. I should also check if it is
+            // common to store the input and the options in the same struct, or if these are kept
+            // seperate, given that they all come from the same source, but are intended for
+            // different purposes!
             input: matches
                 .values_of("input")
                 .unwrap()
