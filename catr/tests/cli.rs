@@ -11,6 +11,7 @@ const EMPTY: &str = "tests/inputs/empty.txt";
 const FOX: &str = "tests/inputs/fox.txt";
 const SPIDERS: &str = "tests/inputs/spiders.txt";
 const BUSTLE: &str = "tests/inputs/the-bustle.txt";
+const ONE_TWO_THREE_FOUR: &str = "tests/inputs/one-two-three-four.txt";
 
 // --------------------------------------------------
 #[test]
@@ -193,4 +194,40 @@ fn all_n() -> TestResult {
 #[test]
 fn all_b() -> TestResult {
     run(&[FOX, SPIDERS, BUSTLE, "-b"], "tests/expected/all.b.out")
+}
+
+// ---
+#[test]
+fn one_two_three_four() -> TestResult {
+    run(
+        &[ONE_TWO_THREE_FOUR],
+        "tests/expected/one-two-three-four.txt",
+    )
+}
+
+// ---
+#[test]
+fn one_two_three_four_s() -> TestResult {
+    run(
+        &[ONE_TWO_THREE_FOUR, "-s"],
+        "tests/expected/one-two-three-four.s.txt",
+    )
+}
+
+// ---
+#[test]
+fn one_two_three_four_n_s() -> TestResult {
+    run(
+        &[ONE_TWO_THREE_FOUR, "-n", "-s"],
+        "tests/expected/one-two-three-four.n.s.txt",
+    )
+}
+
+// ---
+#[test]
+fn one_two_three_four_b_s() -> TestResult {
+    run(
+        &[ONE_TWO_THREE_FOUR, "-b", "-s"],
+        "tests/expected/one-two-three-four.b.s.txt",
+    )
 }
