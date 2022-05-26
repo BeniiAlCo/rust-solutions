@@ -91,53 +91,43 @@ impl Config {
             _ => {}
         }
 
-        for l in "o\nb\no\n".lines() {
-            println!("{l}");
-        }
-
-        for l in self
-            .input
-            .iter()
-            .flat_map(|x| Config::open(&x).unwrap().lines())
-        {
-            if let Ok(line) = l {
-                println!("{line}");
-            }
-        }
+        let mut line_number = 0;
 
         for filename in self.input {
-            match Config::open(&filename) {
-                Err(err) => eprintln!("Failed to open {filename}: {err}"),
-                Ok(output) => {
-                    for line in output.lines().enumerate() {
-                        if let (i, Ok(line)) = line {
-                            let line_number = match self.line_numbers {
-                                LineNumbers::Include => format!("     {i}  "),
-                                LineNumbers::OnlyNonEmpty => {
-                                    if !line.is_empty() {
-                                        format!("     {i}  ")
-                                    } else {
-                                        "".to_string()
-                                    }
-                                }
-                                _ => "".to_string(),
-                            };
+            match Config::open_file(&filename) {
+                Err(e) => eprintln!("Failed to open {filename}: {e}"),
+                Ok(o) => {
+                    for line in o.lines() {
+                        let middle = line?;
 
-                            print!("{line_number}{line}");
-
-                            if self.show_ends {
-                                print!("$");
+                        let start = match self.line_numbers {
+                            LineNumbers::Omit => format!(""),
+                            LineNumbers::Include => {
+                                line_number = line_number + 1;
+                                format!("{:>6}\t", line_number)
                             }
-                            print!("\n");
-                        }
+                            LineNumbers::OnlyNonEmpty => {
+                                if !middle.is_empty() {
+                                    line_number = line_number + 1;
+                                    format!("{:>6}\t", line_number)
+                                } else {
+                                    format!("")
+                                }
+                            }
+                        };
+
+                        let end = if self.show_ends { "$" } else { "" };
+
+                        println!("{start}{middle}{end}");
                     }
                 }
             }
         }
+
         Ok(())
     }
 
-    fn open(filename: &str) -> Result<Box<dyn BufRead>, Box<dyn Error>> {
+    fn open_file(filename: &str) -> Result<Box<dyn BufRead>, Box<dyn Error>> {
         // TODO: other implementations of stdin that I have seen use stdin.lock() -- why is this? (I
         // assume that it has to do with adding in multithreading support later on, which this book
         // just isn't going to cover right now?)
