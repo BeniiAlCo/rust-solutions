@@ -100,6 +100,13 @@ impl Config {
                     for line in o.lines() {
                         let middle = line?;
 
+                        // TODO: This uses an additional string allocation to use the format macro
+                        // -- I need to check how the println macro works to see if this truly
+                        // matters, or if it merely pre-emts an allocation anyway.
+                        // If it need not use an allocation, I should see if I can generate the
+                        // line number in another way; If it will allocate to print, I should
+                        // define the expected length of the string here to save on having to
+                        // expand it when concatinating the line parts and printing.
                         let start = match self.line_numbers {
                             LineNumbers::Omit => format!(""),
                             LineNumbers::Include => {
