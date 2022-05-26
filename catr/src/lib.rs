@@ -101,20 +101,23 @@ impl Config {
 
         let mut line_number = 0;
 
+        // TODO: Can this loop be written as an iterator that unpacks each file, whilst using
+        // correct error messages, flattens them as to maintain the correct line number, and then
+        // prints out each line without using additional string allocations?
         for filename in self.input {
             match Config::open_file(&filename) {
                 Err(e) => eprintln!("Failed to open {filename}: {e}"),
                 Ok(o) => {
                     let mut previous_line_empty = false;
                     for line in o.lines() {
-                        let middle = line?;
+                        let line_contents = line?;
 
                         if self.squeeze_blank {
-                            if previous_line_empty && middle.is_empty() {
+                            if previous_line_empty && line_contents.is_empty() {
                                 continue;
                             }
 
-                            previous_line_empty = middle.is_empty();
+                            previous_line_empty = line_contents.is_empty();
                         }
 
                         // TODO: This uses an additional string allocation to use the format macro
@@ -124,15 +127,15 @@ impl Config {
                         // line number in another way; If it will allocate to print, I should
                         // define the expected length of the string here to save on having to
                         // expand it when concatinating the line parts and printing.
-                        let start = match self.line_numbers {
+                        let line_start = match self.line_numbers {
                             LineNumbers::Omit => format!(""),
                             LineNumbers::Include => {
-                                line_number = line_number + 1;
+                                line_number += 1;
                                 format!("{:>6}\t", line_number)
                             }
                             LineNumbers::OnlyNonEmpty => {
-                                if !middle.is_empty() {
-                                    line_number = line_number + 1;
+                                if !line_contents.is_empty() {
+                                    line_number += 1;
                                     format!("{:>6}\t", line_number)
                                 } else {
                                     format!("")
@@ -140,9 +143,10 @@ impl Config {
                             }
                         };
 
-                        let end = if self.show_ends { "$" } else { "" };
+                        // TODO: Add in tests for line_end.
+                        let line_end = if self.show_ends { "$" } else { "" };
 
-                        println!("{start}{middle}{end}");
+                        println!("{line_start}{line_contents}{line_end}");
                     }
                 }
             }
