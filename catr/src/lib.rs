@@ -97,8 +97,17 @@ impl Config {
             match Config::open_file(&filename) {
                 Err(e) => eprintln!("Failed to open {filename}: {e}"),
                 Ok(o) => {
+                    let mut previous_line_empty = false;
                     for line in o.lines() {
                         let middle = line?;
+
+                        if self.squeeze_blank {
+                            if previous_line_empty && middle.is_empty() {
+                                continue;
+                            }
+
+                            previous_line_empty = middle.is_empty();
+                        }
 
                         // TODO: This uses an additional string allocation to use the format macro
                         // -- I need to check how the println macro works to see if this truly
