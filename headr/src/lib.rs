@@ -1,7 +1,9 @@
 use clap::{Arg, Command};
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read};
+use std::io::{Seek, SeekFrom};
+use std::str::from_utf8;
 
 // head
 // display the first lines of a file.
@@ -26,13 +28,13 @@ use std::io::{self, BufRead, BufReader};
 pub struct Config {
     kind: HeadKind,
     print_headers: bool,
-    files: Vec<String>,
+    files: Vec<Option<String>>,
 }
 
 #[derive(Clone, Copy)]
 enum HeadKind {
-    Bytes(usize),
-    Lines(usize),
+    Bytes(i64),
+    Lines(i64),
 }
 
 pub fn get_args() -> Result<Config, Box<dyn Error>> {
@@ -47,7 +49,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .takes_value(true)
                 .allow_hyphen_values(true)
                 .value_name("[-]NUM")
-                .validator(|s| s.parse::<usize>())
+                .validator(|s| s.parse::<i64>())
                 .conflicts_with("lines")
                 .help("Print the first NUM bytes of each file;\n\tWith the leading '-', print all but the last NUM bytes of each file.")
                 .display_order(0))
@@ -58,7 +60,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .takes_value(true)
                 .value_name("[-]NUM")
                 .default_value("10")
-                .validator(|s| s.parse::<usize>())
+                .validator(|s| s.parse::<i64>())
                 .conflicts_with("bytes")
                 .display_order(1))
         .arg(
@@ -95,45 +97,68 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
             HeadKind::Lines(matches.value_of_t("lines")?)
         },
         print_headers: !matches.is_present("quiet"),
-        files: matches.values_of_t("file").unwrap(),
+        files: {
+            matches
+                .values_of("file")
+                .unwrap()
+                .map(|file| {
+                    if file == "-" {
+                        None
+                    } else {
+                        Some(file.to_string())
+                    }
+                })
+                .collect()
+        },
     })
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    if config.print_headers {}
     for filename in config.files {
-        print_file(&filename, config.kind)?;
+        match open(&filename) {
+            Err(e) => eprintln!("Failed to open {}: {e}", filename.unwrap_or_default()),
+            Ok(mut file) => {
+                //print!("==> {} <==", filename.unwrap_or_default());
+                match config.kind {
+                    HeadKind::Bytes(num) => {
+                        let mut buffer = Vec::new();
+                        match num.cmp(&0) {
+                            std::cmp::Ordering::Less => {
+                                file.read_to_end(&mut buffer)?;
+                                buffer = buffer
+                                    .into_iter()
+                                    .rev()
+                                    .skip(num.abs().try_into().unwrap())
+                                    .rev()
+                                    .collect();
+                            }
+                            std::cmp::Ordering::Equal => {
+                                println!();
+                                continue;
+                            }
+                            std::cmp::Ordering::Greater => {
+                                file.take(num.try_into().unwrap())
+                                    .read_to_end(&mut buffer)?;
+                            }
+                        }
+                        print!("{}", from_utf8(&buffer).unwrap_or_default());
+                    }
+                    HeadKind::Lines(num) => {
+                        for line in file.lines().take(num.try_into().unwrap()) {
+                            println!("{}", line?);
+                        }
+                    }
+                }
+            }
+        }
     }
-
     Ok(())
 }
 
-fn print_file(filename: &str, head_kind: HeadKind) -> Result<(), Box<dyn Error>> {
-    match open_file(filename) {
-        Err(e) => eprintln!("Failed to open {filename}: {e}"),
-        Ok(file) => match head_kind {
-            HeadKind::Bytes(num) => {
-                for byte in file
-                    .lines()
-                    .map(|line| line.unwrap())
-                    .flat_map(|line| line.as_bytes().to_owned())
-                    .take(num)
-                {
-                    print!("{:?}", byte);
-                }
-            }
-            HeadKind::Lines(num) => {
-                for line in file.lines().take(num) {
-                    println!("{}", line?);
-                }
-            }
-        },
-    }
-    Ok(())
-}
-
-fn open_file(filename: &str) -> Result<Box<dyn BufRead>, Box<dyn Error>> {
+pub fn open(filename: &Option<String>) -> Result<Box<dyn BufRead>, Box<dyn Error>> {
     match filename {
-        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
-        _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+        None => Ok(Box::new(BufReader::new(io::stdin().lock()))),
+        Some(filename) => Ok(Box::new(BufReader::new(File::open(filename)?))),
     }
 }
