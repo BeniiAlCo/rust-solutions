@@ -1,5 +1,7 @@
 use clap::{Arg, Command};
 use std::error::Error;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 
 // head
 // display the first lines of a file.
@@ -27,6 +29,7 @@ pub struct Config {
     files: Vec<String>,
 }
 
+#[derive(Clone, Copy)]
 enum HeadKind {
     Bytes(usize),
     Lines(usize),
@@ -97,5 +100,40 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    todo!()
+    for filename in config.files {
+        print_file(&filename, config.kind)?;
+    }
+
+    Ok(())
+}
+
+fn print_file(filename: &str, head_kind: HeadKind) -> Result<(), Box<dyn Error>> {
+    match open_file(filename) {
+        Err(e) => eprintln!("Failed to open {filename}: {e}"),
+        Ok(file) => match head_kind {
+            HeadKind::Bytes(num) => {
+                for byte in file
+                    .lines()
+                    .map(|line| line.unwrap())
+                    .flat_map(|line| line.as_bytes().to_owned())
+                    .take(num)
+                {
+                    print!("{:?}", byte);
+                }
+            }
+            HeadKind::Lines(num) => {
+                for line in file.lines().take(num) {
+                    println!("{}", line?);
+                }
+            }
+        },
+    }
+    Ok(())
+}
+
+fn open_file(filename: &str) -> Result<Box<dyn BufRead>, Box<dyn Error>> {
+    match filename {
+        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
+        _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+    }
 }
