@@ -2,7 +2,6 @@ use clap::{Arg, Command};
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
-use std::str::from_utf8;
 
 // head
 // display the first lines of a file.
