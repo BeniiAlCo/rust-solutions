@@ -55,7 +55,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .long("bytes")
                 .takes_value(true)
                 .allow_hyphen_values(true)
-                .value_name("[-]NUM")
+                .value_name("[-]BYTES")
                 .validator(valid_byte_number)
                 .conflicts_with("lines")
                 .help("Print the first NUM bytes of each file;\n\tWith the leading '-', print all but the last NUM bytes of each file.")
@@ -66,7 +66,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .long("lines")
                 .takes_value(true)
                 .allow_hyphen_values(true)
-                .value_name("[-]NUM")
+                .value_name("[-]LINES")
                 .default_value("10")
                 .validator(valid_line_number)
                 .conflicts_with("bytes")
@@ -190,18 +190,11 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                                 .map(|byte| byte.unwrap())
                                 .collect::<Vec<_>>();
 
-                            for byte in 0..2 {
-                                if let Ok(longest_valid_utf8_string) =
-                                    from_utf8(&bytes[..bytes.len().saturating_sub(byte)])
-                                {
-                                    print!("{longest_valid_utf8_string}");
-                                    break;
-                                }
-                            }
+                            print!("{}", String::from_utf8_lossy(&bytes));
                         }
                         HeadKind::Lines => {
                             for line in file.split(b'\n').take(config.output_size) {
-                                println!("{}", from_utf8(&line?).unwrap_or_default());
+                                println!("{}", String::from_utf8_lossy(&line?));
                             }
                         }
                     },
@@ -210,26 +203,19 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                             let bytes = file.bytes().map(|byte| byte.unwrap()).collect::<Vec<_>>();
                             let bytes = &bytes[..bytes.len().saturating_sub(config.output_size)];
 
-                            for byte in 0..2 {
-                                if let Ok(longest_valid_utf8_string) =
-                                    from_utf8(&bytes[..bytes.len().saturating_sub(byte)])
-                                {
-                                    print!("{longest_valid_utf8_string}");
-                                    break;
-                                }
-                            }
+                            print!("{}", String::from_utf8_lossy(bytes));
                         }
                         HeadKind::Lines => {
                             let lines = file
-                                .lines()
+                                .split(b'\n')
                                 .map(|line| line.unwrap())
-                                .collect::<Vec<String>>();
+                                .collect::<Vec<_>>();
                             let number_of_lines = lines.len();
                             for line in lines
                                 .into_iter()
                                 .take(number_of_lines.saturating_sub(config.output_size))
                             {
-                                println!("{}", line);
+                                println!("{}", String::from_utf8_lossy(&line));
                             }
                         }
                     },
