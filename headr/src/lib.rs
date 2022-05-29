@@ -156,10 +156,20 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                     Sign::Zero => continue,
                     Sign::Positive => match config.output_kind {
                         HeadKind::Bytes => {
-                            let mut buffer = Vec::new();
-                            file.take(config.output_size.try_into().unwrap())
-                                .read_to_end(&mut buffer)?;
-                            print!("{}", from_utf8(&buffer).unwrap_or_default());
+                            let bytes = file
+                                .bytes()
+                                .take(config.output_size)
+                                .map(|byte| byte.unwrap())
+                                .collect::<Vec<_>>();
+
+                            for byte in 0..2 {
+                                if let Ok(longest_valid_utf8_string) =
+                                    from_utf8(&bytes[..bytes.len() - byte])
+                                {
+                                    print!("{longest_valid_utf8_string}");
+                                    break;
+                                }
+                            }
                         }
                         HeadKind::Lines => {
                             for line in file.split(b'\n').take(config.output_size) {
@@ -168,6 +178,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                         }
                     },
                     Sign::Negative => {
+                        dbg!("hi");
                         match config.output_kind {
                             HeadKind::Bytes => {
                                 let mut buffer = Vec::new();
@@ -178,7 +189,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                                 file.read_to_end(&mut buffer)?;
                                 buffer.truncate(buffer.len().saturating_sub(config.output_size));
 
-                                print!("{}", from_utf8(&buffer).unwrap_or_default());
+                                dbg!(&buffer[buffer.len() - 1..buffer.len()]);
+                                print!(
+                                    "{}",
+                                    if from_utf8(&buffer[buffer.len() - 1..buffer.len()]).is_ok() {
+                                        from_utf8(&buffer).unwrap_or_default()
+                                    } else {
+                                        from_utf8(&buffer[..buffer.len() - 1]).unwrap_or_default()
+                                    } //from_utf8(&buffer)
+                                      //    .unwrap_or_else(from_utf8(&buffer[..buffer.len() - 1]))
+                                );
                             }
                             HeadKind::Lines => {
                                 let lines = file
