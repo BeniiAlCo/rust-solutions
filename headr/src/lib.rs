@@ -56,7 +56,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .takes_value(true)
                 .allow_hyphen_values(true)
                 .value_name("[-]NUM")
-                .validator(|s| {if s.as_bytes()[0] == b'-' {s[1..].parse::<usize>()} else {s.parse::<usize>()}})
+                .validator(valid_byte_number)
                 .conflicts_with("lines")
                 .help("Print the first NUM bytes of each file;\n\tWith the leading '-', print all but the last NUM bytes of each file.")
                 .display_order(0))
@@ -68,7 +68,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .allow_hyphen_values(true)
                 .value_name("[-]NUM")
                 .default_value("10")
-                .validator(|s| {if s.as_bytes()[0] == b'-' {s[1..].parse::<usize>()} else {s.parse::<usize>()}})
+                .validator(valid_line_number)
                 .conflicts_with("bytes")
                 .display_order(1))
         .arg(
@@ -143,12 +143,40 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
     })
 }
 
+fn valid_byte_number(input: &str) -> Result<(), String> {
+    let byte_number = if input.as_bytes()[0] == b'-' {
+        input[1..].parse::<usize>()
+    } else {
+        input.parse::<usize>()
+    };
+
+    if byte_number.is_ok() {
+        Ok(())
+    } else {
+        Err(format!("illegal byte count -- {input}"))
+    }
+}
+
+fn valid_line_number(input: &str) -> Result<(), String> {
+    let line_number = if input.as_bytes()[0] == b'-' {
+        input[1..].parse::<usize>()
+    } else {
+        input.parse::<usize>()
+    };
+
+    if line_number.is_ok() {
+        Ok(())
+    } else {
+        Err(format!("illegal line count -- {input}"))
+    }
+}
+
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let mut filenames = config.files.into_iter().peekable();
     while let Some(filename) = filenames.next() {
         match open(&filename) {
             Err(e) => eprintln!("Failed to open {}: {e}", filename.unwrap_or_default()),
-            Ok(mut file) => {
+            Ok(file) => {
                 if config.print_headers {
                     println!("==> {} <==", filename.unwrap_or_default())
                 }
@@ -164,7 +192,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
                             for byte in 0..2 {
                                 if let Ok(longest_valid_utf8_string) =
-                                    from_utf8(&bytes[..bytes.len() - byte])
+                                    from_utf8(&bytes[..bytes.len().saturating_sub(byte)])
                                 {
                                     print!("{longest_valid_utf8_string}");
                                     break;
@@ -177,44 +205,34 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                             }
                         }
                     },
-                    Sign::Negative => {
-                        dbg!("hi");
-                        match config.output_kind {
-                            HeadKind::Bytes => {
-                                let mut buffer = Vec::new();
+                    Sign::Negative => match config.output_kind {
+                        HeadKind::Bytes => {
+                            let bytes = file.bytes().map(|byte| byte.unwrap()).collect::<Vec<_>>();
+                            let bytes = &bytes[..bytes.len().saturating_sub(config.output_size)];
 
-                                // TODO: there's gotta be a way to do this without assigning to a
-                                // vector? using the seek trait perhaps?
-
-                                file.read_to_end(&mut buffer)?;
-                                buffer.truncate(buffer.len().saturating_sub(config.output_size));
-
-                                dbg!(&buffer[buffer.len() - 1..buffer.len()]);
-                                print!(
-                                    "{}",
-                                    if from_utf8(&buffer[buffer.len() - 1..buffer.len()]).is_ok() {
-                                        from_utf8(&buffer).unwrap_or_default()
-                                    } else {
-                                        from_utf8(&buffer[..buffer.len() - 1]).unwrap_or_default()
-                                    } //from_utf8(&buffer)
-                                      //    .unwrap_or_else(from_utf8(&buffer[..buffer.len() - 1]))
-                                );
-                            }
-                            HeadKind::Lines => {
-                                let lines = file
-                                    .lines()
-                                    .map(|line| line.unwrap())
-                                    .collect::<Vec<String>>();
-                                let number_of_lines = lines.len();
-                                for line in lines
-                                    .into_iter()
-                                    .take(number_of_lines.saturating_sub(config.output_size))
+                            for byte in 0..2 {
+                                if let Ok(longest_valid_utf8_string) =
+                                    from_utf8(&bytes[..bytes.len().saturating_sub(byte)])
                                 {
-                                    println!("{}", line);
+                                    print!("{longest_valid_utf8_string}");
+                                    break;
                                 }
                             }
                         }
-                    }
+                        HeadKind::Lines => {
+                            let lines = file
+                                .lines()
+                                .map(|line| line.unwrap())
+                                .collect::<Vec<String>>();
+                            let number_of_lines = lines.len();
+                            for line in lines
+                                .into_iter()
+                                .take(number_of_lines.saturating_sub(config.output_size))
+                            {
+                                println!("{}", line);
+                            }
+                        }
+                    },
                 };
                 if config.print_headers && filenames.peek().is_some() {
                     println!()
