@@ -98,49 +98,48 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .hide_default_value(true))
         .get_matches();
 
-    let (output_kind, output_size, output_sign) = {
-        let (output_kind, output) = if matches.is_present("bytes") {
-            (HeadKind::Bytes, matches.value_of("bytes"))
-        } else {
-            (HeadKind::Lines, matches.value_of("lines"))
-        };
-
-        match output.unwrap() {
-            zero if (zero.as_bytes()[0] == b'-' && zero[1..].parse::<usize>()?.eq(&0))
-                || (zero.as_bytes()[0] != b'-' && zero.parse::<usize>()?.eq(&0)) =>
-            {
-                (output_kind, 0, Sign::Zero)
-            }
-
-            negative if negative.as_bytes()[0] == b'-' => {
-                (output_kind, negative[1..].parse::<usize>()?, Sign::Negative)
-            }
-
-            positive => (output_kind, positive.parse::<usize>()?, Sign::Positive),
-        }
+    let (output_kind, output) = if matches.is_present("bytes") {
+        (HeadKind::Bytes, matches.value_of("bytes").unwrap())
+    } else {
+        (HeadKind::Lines, matches.value_of("lines").unwrap())
     };
+
+    let starts_with_minus = output.as_bytes()[0] == b'-';
+    let output_size = if starts_with_minus {
+        output[1..].parse::<usize>()?
+    } else {
+        output.parse::<usize>()?
+    };
+
+    let output_sign = if output_size == 0 {
+        Sign::Zero
+    } else if starts_with_minus {
+        Sign::Negative
+    } else {
+        Sign::Positive
+    };
+
+    let print_headers = matches.is_present("verbose")
+        || (matches.occurrences_of("file") > 1 && !matches.is_present("quiet"));
+
+    let files = matches
+        .values_of("file")
+        .unwrap()
+        .map(|file| {
+            if file == "-" {
+                None
+            } else {
+                Some(file.to_string())
+            }
+        })
+        .collect();
 
     Ok(Config {
         output_kind,
         output_size,
         output_sign,
-        print_headers: {
-            matches.is_present("verbose")
-                || (matches.occurrences_of("file") > 1 && !matches.is_present("quiet"))
-        },
-        files: {
-            matches
-                .values_of("file")
-                .unwrap()
-                .map(|file| {
-                    if file == "-" {
-                        None
-                    } else {
-                        Some(file.to_string())
-                    }
-                })
-                .collect()
-        },
+        print_headers,
+        files,
     })
 }
 
@@ -163,8 +162,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                             print!("{}", from_utf8(&buffer).unwrap_or_default());
                         }
                         HeadKind::Lines => {
-                            for line in file.lines().take(config.output_size) {
-                                println!("{}", line?);
+                            for line in file.split(b'\n').take(config.output_size) {
+                                println!("{}", from_utf8(&line?).unwrap_or_default());
                             }
                         }
                     },
@@ -203,48 +202,6 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             }
         }
     }
-
-    //    for filename in config.files {
-    //        match open(&filename) {
-    //            Err(e) => eprintln!("Failed to open {}: {e}", filename.unwrap_or_default()),
-    //            Ok(mut file) => {
-    //print!("==> {} <==", filename.unwrap_or_default());
-    // NOTE: I should check whether or not headings will be used at the config argument
-    // parsing stage, not here! perhaps also checking whether the supplied c/n number
-    // is negative too, to avoid all of the abs().try_into().unwrap()'s ?
-    //                match config.kind {
-    //                    HeadKind::Bytes(num) => {
-    //                        let mut buffer = Vec::new();
-    //                        match num.cmp(&0) {
-    //                            std::cmp::Ordering::Less => {
-    //                                file.read_to_end(&mut buffer)?;
-    //                                buffer = buffer
-    //                                    .into_iter()
-    //                                    .rev()
-    //                                    .skip(num.abs().try_into().unwrap())
-    //                                    .rev()
-    //                                    .collect();
-    //                            }
-    //                            std::cmp::Ordering::Equal => {
-    //                                println!();
-    //                                continue;
-    //                            }
-    //                            std::cmp::Ordering::Greater => {
-    //                                file.take(num.try_into().unwrap())
-    //                                    .read_to_end(&mut buffer)?;
-    //                            }
-    //                        }
-    //                        print!("{}", from_utf8(&buffer).unwrap_or_default());
-    //                    }
-    //                    HeadKind::Lines(num) => {
-    //                        for line in file.lines().take(num.try_into().unwrap()) {
-    //                            println!("{}", line?);
-    //                        }
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
     Ok(())
 }
 
