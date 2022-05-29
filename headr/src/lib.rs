@@ -58,7 +58,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .value_name("[-]BYTES")
                 .validator(valid_byte_number)
                 .conflicts_with("lines")
-                .help("Print the first NUM bytes of each file;\n\tWith the leading '-', print all but the last NUM bytes of each file.")
+                .help("Print the first BYTES bytes of each file;\n\tWith the leading '-', print all but the last BYTES bytes of each file.")
                 .display_order(0))
         .arg(
             Arg::new("lines")
@@ -70,6 +70,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .default_value("10")
                 .validator(valid_line_number)
                 .conflicts_with("bytes")
+                .help("Print the first LINES lines instead of the first 10;\n\tWith the leading '-', print all but the last LINES lines of each file.")
                 .display_order(1))
         .arg(
             Arg::new("quiet")
@@ -77,12 +78,14 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
                 .visible_alias("silent")
                 .long("quiet")
                 .conflicts_with("verbose")
+                .help("Never print headers giving file names.")
                 .display_order(2))
         .arg(
             Arg::new("verbose")
                 .short('v')
                 .long("verbose")
                 .conflicts_with("quiet")
+                .help("Always print headers giving file names.")
                 .display_order(3))
         .arg(
             Arg::new("zero-terminated")
