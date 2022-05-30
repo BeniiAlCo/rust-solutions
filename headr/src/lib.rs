@@ -146,13 +146,7 @@ pub fn get_args() -> Result<Config, Box<dyn Error>> {
 }
 
 fn valid_byte_number(input: &str) -> Result<(), String> {
-    let byte_number = if input.as_bytes()[0] == b'-' {
-        input[1..].parse::<usize>()
-    } else {
-        input.parse::<usize>()
-    };
-
-    if byte_number.is_ok() {
+    if valid_number(input).is_ok() {
         Ok(())
     } else {
         Err(format!("illegal byte count -- {input}"))
@@ -160,17 +154,46 @@ fn valid_byte_number(input: &str) -> Result<(), String> {
 }
 
 fn valid_line_number(input: &str) -> Result<(), String> {
-    let line_number = if input.as_bytes()[0] == b'-' {
-        input[1..].parse::<usize>()
-    } else {
-        input.parse::<usize>()
-    };
-
-    if line_number.is_ok() {
+    if valid_number(input).is_ok() {
         Ok(())
     } else {
         Err(format!("illegal line count -- {input}"))
     }
+}
+
+fn valid_number(input: &str) -> Result<usize, std::num::ParseIntError> {
+    if input.as_bytes()[0] == b'-' {
+        input[1..].parse::<usize>()
+    } else {
+        input.parse::<usize>()
+    }
+}
+
+#[test]
+fn test_valid_number() {
+    // Positive Number
+    let input = "18446744073709551615";
+    assert!(valid_number(input).is_ok());
+    assert_eq!(valid_number(input).unwrap(), 18446744073709551615);
+
+    // Negative Number
+    let input = "-18446744073709551615";
+    assert!(valid_number(input).is_ok());
+    assert_eq!(valid_number(input).unwrap(), 18446744073709551615);
+
+    // Positive Zero
+    let input = "0";
+    assert!(valid_number(input).is_ok());
+    assert_eq!(valid_number(input).unwrap(), 0);
+
+    // Negative Zero
+    let input = "-0";
+    assert!(valid_number(input).is_ok());
+    assert_eq!(valid_number(input).unwrap(), 0);
+
+    // Non-numeric
+    let input = "This_is_not_a_number";
+    assert!(valid_number(input).is_err());
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
@@ -222,10 +245,13 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                         }
                     },
                 };
-                if config.print_headers && filenames.peek().is_some() {
-                    println!()
-                }
             }
+        }
+        if config.print_headers
+            && filenames.peek().is_some()
+            && open(filenames.peek().unwrap()).is_ok()
+        {
+            println!()
         }
     }
     Ok(())
